@@ -232,4 +232,17 @@ public interface ProductFacade {
   List<ReadableProduct> relatedItems(MerchantStore store, Product product, Language language)
       throws Exception;
 
+  /**
+   * Filters a list of product based on recommended discount for a given categoryid
+   *
+   * @param store
+   * @param language
+   * @param criterias
+   * @param categoryId
+   * @return
+   * @throws Exception
+   */
+  ReadableProductList getProductListsByRecommendation(MerchantStore store, Language language,
+                                                      ProductCriteria criterias, Long categoryId) throws Exception;
+
 }

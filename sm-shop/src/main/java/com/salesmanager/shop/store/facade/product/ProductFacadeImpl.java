@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import javax.inject.Inject;
+
+import com.salesmanager.core.model.catalog.product.ProductList;
+import com.salesmanager.shop.utils.MathUtil;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.Validate;
 import org.apache.commons.lang3.StringUtils;
@@ -290,6 +293,79 @@ public class ProductFacadeImpl implements ProductFacade {
 
 
     return productList;
+  }
+
+  @Override
+  public ReadableProductList getProductListsByRecommendation(MerchantStore store, Language language, ProductCriteria criterias, Long categoryId)
+          throws Exception {
+
+    List<Long> categoryIds = new ArrayList<>();
+    categoryIds.add(categoryId);
+
+    List<com.salesmanager.core.model.catalog.product.Product> products = productService.getProducts(categoryIds, language);
+
+    com.salesmanager.core.model.catalog.product.ProductList productList = new ProductList();
+    productList.setProducts(products);
+
+    /** This is for category **/
+    if (CollectionUtils.isNotEmpty(criterias.getCategoryIds())) {
+
+      if (criterias.getCategoryIds().size() == 1) {
+
+        com.salesmanager.core.model.catalog.category.Category category =
+                categoryService.getById(criterias.getCategoryIds().get(0));
+
+
+
+        if (category != null) {
+          String lineage = new StringBuilder().append(category.getLineage()).toString();
+
+          List<com.salesmanager.core.model.catalog.category.Category> categories =
+                  categoryService.getListByLineage(store, lineage);
+
+          List<Long> ids = new ArrayList<Long>();
+          if (categories != null && categories.size() > 0) {
+            for (com.salesmanager.core.model.catalog.category.Category c : categories) {
+              ids.add(c.getId());
+            }
+          }
+          ids.add(category.getId());
+          criterias.setCategoryIds(ids);
+        }
+      }
+    }
+
+    ReadableProductPopulator populator = new ReadableProductPopulator();
+    populator.setPricingService(pricingService);
+    populator.setimageUtils(imageUtils);
+
+
+    ReadableProductList readableProductList = new ReadableProductList();
+
+    for (Product product : productList.getProducts()) {
+
+      // create new proxy product
+      ReadableProduct readProduct = populator.populate(product, new ReadableProduct(), store, language);
+
+      // Check for discounted products
+      if(readProduct.isDiscounted()){
+
+        double recommendedDiscount = 20.00;
+
+        double discountPercentage = MathUtil.calculateDiscountPercentage(readProduct.getOriginalPrice(), readProduct.getFinalPrice());
+
+        if(discountPercentage >= recommendedDiscount) {
+          readableProductList.getProducts().add(readProduct);
+        }
+      }
+
+    }
+
+    readableProductList.setTotalCount(readableProductList.getProducts().size());
+
+
+    return readableProductList;
+
   }
 
   @Override
